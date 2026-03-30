@@ -16,13 +16,14 @@ Prefix NAT translates entire subnets 1:1 — each host in the source subnet maps
 SiteA and SiteB both use `192.168.1.0/24` on their LAN. A WireGuard tunnel (`wg0`) connects the two gateways. Without prefix NAT, the overlapping subnets make routing impossible. With prefix NAT, each site sees the other on a unique virtual subnet:
 
 ```
-SiteA LAN (192.168.1.0/24)                    SiteB LAN (192.168.1.0/24)
-         |                                             |
-      [GW-A] -------- wg0 tunnel -------- [GW-B]
-      192.168.1.1                          192.168.1.1
+SiteA LAN                                          SiteB LAN
+(192.168.1.0/24)                                   (192.168.1.0/24)
+      |                                                  |
+   [GW-A] --------------- wg0 tunnel --------------- [GW-B]
+   192.168.1.1                                       192.168.1.1
 
-SiteA sees SiteB as: 10.0.2.0/24    SiteB sees SiteA as: 10.0.1.0/24
-e.g. SiteB's .50 → 10.0.2.50       e.g. SiteA's .50 → 10.0.1.50
+SiteA sees SiteB as: 10.0.2.0/24          SiteB sees SiteA as: 10.0.1.0/24
+e.g. SiteB's .50 → 10.0.2.50             e.g. SiteA's .50 → 10.0.1.50
 ```
 
 A device at SiteA (`192.168.1.50`) wanting to reach a device at SiteB (`192.168.1.100`) connects to `10.0.2.100`. The prefix NAT on GW-A translates the source to `10.0.1.50` and sends it through the tunnel. GW-B receives it, translates the destination from `10.0.2.100` to `192.168.1.100`, and delivers it. Replies follow the reverse path.
