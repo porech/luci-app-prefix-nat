@@ -1,0 +1,2 @@
+config prefix-nat 'global'
+	option enabled '0'

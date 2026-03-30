@@ -1,0 +1,11 @@
+{
+	"luci-app-prefix-nat": {
+		"description": "Grant access to Prefix NAT configuration",
+		"read": {
+			"uci": ["prefix-nat"]
+		},
+		"write": {
+			"uci": ["prefix-nat"]
+		}
+	}
+}

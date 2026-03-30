@@ -1,0 +1,15 @@
+{
+	"admin/network/firewall/prefix-nat": {
+		"title": "Prefix NAT",
+		"order": 55,
+		"action": {
+			"type": "view",
+			"path": "prefix-nat"
+		},
+		"depends": {
+			"uci": {
+				"prefix-nat": true
+			}
+		}
+	}
+}
