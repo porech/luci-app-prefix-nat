@@ -1,0 +1,122 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: luci-app-prefix-nat\n"
+"POT-Creation-Date: 2026-03-31 12:17+0800\n"
+"PO-Revision-Date: 2026-03-31 12:17+0800\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:9
+msgid "Must be a valid CIDR subnet (e.g. 192.168.1.0/24)"
+msgstr "Must be a valid CIDR subnet (e.g. 192.168.1.0/24)"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:12
+msgid "Invalid IP address: octet %d is out of range"
+msgstr "Invalid IP address: octet %d is out of range"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:15
+msgid "Invalid prefix length: must be 0-32"
+msgstr "Invalid prefix length: must be 0-32"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:23
+msgid "1:1 Prefix NAT"
+msgstr "1:1 Prefix NAT"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:24
+msgid ""
+"Configure nftables 1:1 prefix NAT rules for subnet-to-subnet translation. "
+"Each rule maps a local subnet to a virtual subnet on a specific interface. "
+"Rules are generated as nftables includes and loaded by firewall4."
+msgstr ""
+"Configure nftables 1:1 prefix NAT rules for subnet-to-subnet translation. "
+"Each rule maps a local subnet to a virtual subnet on a specific interface. "
+"Rules are generated as nftables includes and loaded by firewall4."
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:29
+msgid "Global Settings"
+msgstr "Global Settings"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:32
+msgid "Enable"
+msgstr "Enable"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:33
+msgid "Enable prefix NAT rule generation. When disabled, all rules are removed."
+msgstr "Enable prefix NAT rule generation. When disabled, all rules are removed."
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:37
+msgid "Translation Rules"
+msgstr "Translation Rules"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:42
+msgid "Enable"
+msgstr "Enable"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:46
+msgid "Description"
+msgstr "Description"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:47
+msgid "A human-readable name for this rule."
+msgstr "A human-readable name for this rule."
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:52
+msgid "Description must not contain quotes, semicolons, braces, or backslashes"
+msgstr "Description must not contain quotes, semicolons, braces, or backslashes"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:56
+msgid "Local Subnet"
+msgstr "Local Subnet"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:57
+msgid ""
+"The real local subnet (CIDR notation). "
+"Inbound traffic with destination in the virtual subnet will be translated to this subnet. "
+"Outbound traffic from this subnet will be translated to the virtual subnet."
+msgstr ""
+"The real local subnet (CIDR notation). "
+"Inbound traffic with destination in the virtual subnet will be translated to this subnet. "
+"Outbound traffic from this subnet will be translated to the virtual subnet."
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:66
+msgid "Virtual Subnet"
+msgstr "Virtual Subnet"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:67
+msgid ""
+"The translated virtual subnet (CIDR notation). "
+"Remote hosts use this subnet to reach local devices. "
+"Must have the same prefix length as the local subnet."
+msgstr ""
+"The translated virtual subnet (CIDR notation). "
+"Remote hosts use this subnet to reach local devices. "
+"Must have the same prefix length as the local subnet."
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:82
+msgid "Prefix length must match the local subnet (/%s)"
+msgstr "Prefix length must match the local subnet (/%s)"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:87
+msgid "Interface"
+msgstr "Interface"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:88
+msgid ""
+"The network interface where translation is applied. "
+"Typically a WireGuard or VPN tunnel interface."
+msgstr ""
+"The network interface where translation is applied. "
+"Typically a WireGuard or VPN tunnel interface."
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:94
+msgid "Interface name can only contain letters, numbers, underscores, hyphens, and dots"
+msgstr "Interface name can only contain letters, numbers, underscores, hyphens, and dots"
+
+#: root/usr/share/luci/menu.d/luci-app-prefix-nat.json:3
+msgid "Prefix NAT"
+msgstr "Prefix NAT"

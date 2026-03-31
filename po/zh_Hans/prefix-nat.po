@@ -1,0 +1,122 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: luci-app-prefix-nat\n"
+"POT-Creation-Date: 2026-03-31 12:17+0800\n"
+"PO-Revision-Date: 2026-03-31 12:17+0800\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:9
+msgid "Must be a valid CIDR subnet (e.g. 192.168.1.0/24)"
+msgstr "必须是有效的CIDR子网（例如：192.168.1.0/24）"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:12
+msgid "Invalid IP address: octet %d is out of range"
+msgstr "无效的IP地址：第%d个八位组超出范围"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:15
+msgid "Invalid prefix length: must be 0-32"
+msgstr "无效的前缀长度：必须是0-32"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:23
+msgid "1:1 Prefix NAT"
+msgstr "1:1前缀NAT"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:24
+msgid ""
+"Configure nftables 1:1 prefix NAT rules for subnet-to-subnet translation. "
+"Each rule maps a local subnet to a virtual subnet on a specific interface. "
+"Rules are generated as nftables includes and loaded by firewall4."
+msgstr ""
+"配置nftables 1:1前缀NAT规则用于子网到子网的转换。"
+"每个规则将本地子网映射到特定接口上的虚拟子网。"
+"规则作为nftables包含文件生成，由firewall4加载。"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:29
+msgid "Global Settings"
+msgstr "全局设置"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:32
+msgid "Enable"
+msgstr "启用"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:33
+msgid "Enable prefix NAT rule generation. When disabled, all rules are removed."
+msgstr "启用前缀NAT规则生成。禁用时，所有规则都将被移除。"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:37
+msgid "Translation Rules"
+msgstr "转换规则"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:42
+msgid "Enable"
+msgstr "启用"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:46
+msgid "Description"
+msgstr "描述"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:47
+msgid "A human-readable name for this rule."
+msgstr "此规则的人类可读名称。"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:52
+msgid "Description must not contain quotes, semicolons, braces, or backslashes"
+msgstr "描述不能包含引号、分号、大括号或反斜杠"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:56
+msgid "Local Subnet"
+msgstr "本地子网"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:57
+msgid ""
+"The real local subnet (CIDR notation). "
+"Inbound traffic with destination in the virtual subnet will be translated to this subnet. "
+"Outbound traffic from this subnet will be translated to the virtual subnet."
+msgstr ""
+"真实的本地子网（CIDR表示法）。"
+"目标在虚拟子网中的入站流量将被转换到此子网。"
+"从此子网发出的出站流量将被转换到虚拟子网。"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:66
+msgid "Virtual Subnet"
+msgstr "虚拟子网"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:67
+msgid ""
+"The translated virtual subnet (CIDR notation). "
+"Remote hosts use this subnet to reach local devices. "
+"Must have the same prefix length as the local subnet."
+msgstr ""
+"转换后的虚拟子网（CIDR表示法）。"
+"远程主机使用此子网访问本地设备。"
+"必须与本地子网具有相同的前缀长度。"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:82
+msgid "Prefix length must match the local subnet (/%s)"
+msgstr "前缀长度必须与本地子网匹配（/%s）"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:87
+msgid "Interface"
+msgstr "接口"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:88
+msgid ""
+"The network interface where translation is applied. "
+"Typically a WireGuard or VPN tunnel interface."
+msgstr ""
+"应用转换的网络接口。"
+"通常是WireGuard或VPN隧道接口。"
+
+#: htdocs/luci-static/resources/view/prefix-nat.js:94
+msgid "Interface name can only contain letters, numbers, underscores, hyphens, and dots"
+msgstr "接口名称只能包含字母、数字、下划线、连字符和点"
+
+#: root/usr/share/luci/menu.d/luci-app-prefix-nat.json:3
+msgid "Prefix NAT"
+msgstr "前缀NAT"
