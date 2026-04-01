@@ -56,7 +56,7 @@ generate_nft() {
 
 		if [ -n "$post_rules" ]; then
 			echo "chain prefix_nat_postrouting {"
-			echo "	type nat hook postrouting priority srcnat + 1; policy accept;"
+			echo "	type nat hook postrouting priority srcnat - 1; policy accept;"
 			echo "$post_rules"
 			echo "}"
 		fi
