@@ -95,6 +95,19 @@ return view.extend({
 			return true;
 		};
 
+		o = s.option(form.Value, 'remote', _('Remote Subnet'),
+			_('Only translate traffic to/from this remote subnet (CIDR notation). ' +
+			  'Leave empty to translate all traffic on the interface. ' +
+			  'Use this when the tunnel also carries non-translated traffic ' +
+			  '(e.g. internet-bound traffic alongside site-to-site).'));
+		o.optional = true;
+		o.placeholder = '10.0.1.0/24';
+		o.validate = function (section_id, value) {
+			if (!value)
+				return true;
+			return validateCIDR(value);
+		};
+
 		return m.render();
 	}
 });

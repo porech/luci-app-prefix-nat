@@ -78,6 +78,21 @@ chain prefix_nat_postrouting {
 }
 ```
 
+### Tunnel carrying mixed traffic
+
+If the tunnel also carries internet traffic (not just site-to-site), use `remote` to scope the translation. Without it, all traffic on the interface gets translated — including internet-bound packets:
+
+```
+config rule
+	option description 'SiteA LAN via tunnel to SiteB'
+	option src '192.168.1.0/24'
+	option dest '10.0.1.0/24'
+	option interface 'wg0'
+	option remote '10.0.2.0/24'
+```
+
+This only translates traffic to/from the remote site's virtual subnet (10.0.2.0/24), leaving internet traffic untouched.
+
 ### Multiple interfaces
 
 If a gateway has multiple tunnel interfaces (e.g., site-to-site + external VPN), add one rule per interface:
@@ -154,6 +169,7 @@ make package/luci-app-prefix-nat/compile
 | `src` | CIDR | yes | Local real subnet (e.g. `192.168.1.0/24`) |
 | `dest` | CIDR | yes | Virtual translated subnet (e.g. `10.0.1.0/24`) |
 | `interface` | string | yes | Network interface for translation (e.g. `wg0`) |
+| `remote` | CIDR | no | Only translate traffic to/from this remote subnet. Leave empty to translate all traffic on the interface. |
 
 The `src` and `dest` subnets must have the same prefix length.
 

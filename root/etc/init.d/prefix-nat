@@ -68,7 +68,7 @@ generate_nft() {
 
 collect_rule() {
 	local section="$1"
-	local enabled src dest interface description
+	local enabled src dest interface remote description
 
 	config_get_bool enabled "$section" enabled 1
 	[ "$enabled" -eq 0 ] && return 0
@@ -76,6 +76,7 @@ collect_rule() {
 	config_get src "$section" src
 	config_get dest "$section" dest
 	config_get interface "$section" interface
+	config_get remote "$section" remote ""
 	config_get description "$section" description ""
 
 	[ -z "$src" ] || [ -z "$dest" ] || [ -z "$interface" ] && {
@@ -95,6 +96,12 @@ collect_rule() {
 		logger -t prefix-nat "Invalid dest subnet '$dest' in rule '$section'"
 		return 0
 	}
+	if [ -n "$remote" ]; then
+		validate_cidr "$remote" || {
+			logger -t prefix-nat "Invalid remote subnet '$remote' in rule '$section'"
+			return 0
+		}
+	fi
 
 	# Validate prefix lengths match (required by nftables prefix NAT)
 	local src_prefix="${src##*/}"
@@ -117,15 +124,20 @@ collect_rule() {
 		comment=" comment \"$description\""
 	fi
 
-	# PREROUTING: inbound traffic on this interface, dst=dest -> translate to src
-	# (remote virtual subnet -> local real subnet)
-	pre_rules="${pre_rules}
-	iifname \"${interface}\" ip daddr ${dest} dnat ip prefix to ${src}${comment}"
+	# Build optional remote subnet match
+	local pre_remote="" post_remote=""
+	if [ -n "$remote" ]; then
+		pre_remote=" ip saddr ${remote}"
+		post_remote=" ip daddr ${remote}"
+	fi
 
-	# POSTROUTING: outbound traffic on this interface, src=src -> translate to dest
-	# (local real subnet -> remote virtual subnet)
+	# PREROUTING: inbound traffic on this interface, [from remote,] dst=dest -> translate to src
+	pre_rules="${pre_rules}
+	iifname \"${interface}\"${pre_remote} ip daddr ${dest} dnat ip prefix to ${src}${comment}"
+
+	# POSTROUTING: outbound traffic on this interface, src=src [to remote] -> translate to dest
 	post_rules="${post_rules}
-	oifname \"${interface}\" ip saddr ${src} snat ip prefix to ${dest}${comment}"
+	oifname \"${interface}\" ip saddr ${src}${post_remote} snat ip prefix to ${dest}${comment}"
 }
 
 service_triggers() {
