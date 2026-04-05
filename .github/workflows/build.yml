@@ -12,139 +12,119 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        openwrt:
+          - version: "24.10.6"
+            branch: "24.10"
+            pkg_format: ipk
+          - version: "25.12.2"
+            branch: "25.12"
+            pkg_format: apk
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build packages
+      - name: Determine SDK filename
+        id: sdk-name
         run: |
-          PKG_NAME="luci-app-prefix-nat"
-          PKG_VERSION="1.0.0"
-          PKG_RELEASE=$(git rev-list --count HEAD)
-          PKG_ARCH="all"
-          PKG_FULL="${PKG_NAME}_${PKG_VERSION}-${PKG_RELEASE}_${PKG_ARCH}"
-
-          # Prepare data tree
-          mkdir -p build/control build/data
-          cp -r root/* build/data/ 2>/dev/null || true
-          mkdir -p build/data/www
-          cp -r htdocs/* build/data/www/ 2>/dev/null || true
-
-          INSTALLED_SIZE=$(find build/data -type f 2>/dev/null | xargs wc -c 2>/dev/null | tail -1 | awk '{print $1}')
-
-          # --- Build .ipk (opkg format for 24.10) ---
-          cat > build/control/control <<EOF
-          Package: ${PKG_NAME}
-          Version: ${PKG_VERSION}-${PKG_RELEASE}
-          Depends: luci-base
-          Source: https://github.com/porech/luci-app-prefix-nat
-          SourceName: ${PKG_NAME}
-          License: MIT
-          Section: luci
-          SourceDateEpoch: $(date +%s)
-          Maintainer: Alessandro Rinaldi
-          Architecture: ${PKG_ARCH}
-          Installed-Size: ${INSTALLED_SIZE}
-          Description: LuCI support for 1:1 Prefix NAT
-           Provides a LuCI interface to configure nftables 1:1 prefix NAT rules
-           for subnet-to-subnet translation, compatible with firewall4.
-          EOF
-          sed -i 's/^          //' build/control/control
-
-          cat > build/control/conffiles <<EOF
-          /etc/config/prefix-nat
-          EOF
-          sed -i 's/^          //' build/control/conffiles
-
-          cat > build/control/postinst <<'POSTINST'
-          #!/bin/sh
-          [ -z "${IPKG_INSTROOT}" ] && {
-            /etc/init.d/rpcd restart
-            /etc/init.d/prefix-nat enable
-          }
-          exit 0
-          POSTINST
-          sed -i 's/^          //' build/control/postinst
-          chmod +x build/control/postinst
-
-          cd build/control && tar czf ../control.tar.gz . && cd ../..
-          cd build/data && tar czf ../data.tar.gz . && cd ../..
-          echo "2.0" > build/debian-binary
-          cd build && tar czf "../${PKG_FULL}.ipk" ./debian-binary ./control.tar.gz ./data.tar.gz && cd ..
-          echo "Built: ${PKG_FULL}.ipk"
-
-          # --- Build .apk (apk format for 25.12) ---
-          # Install apk-tools
-          sudo apt-get -qq update && sudo apt-get -qq install -y apk-tools 2>/dev/null || {
-            # Fallback: download static apk
-            wget -qO /tmp/apk-tools-static.apk "https://dl-cdn.alpinelinux.org/alpine/v3.21/main/x86_64/apk-tools-static-2.14.6-r3.apk" || true
-            if [ -f /tmp/apk-tools-static.apk ]; then
-              cd /tmp && tar xzf apk-tools-static.apk sbin/apk.static 2>/dev/null && sudo cp sbin/apk.static /usr/local/bin/apk && cd "$OLDPWD"
-            fi
-          }
-
-          APK_NAME="${PKG_NAME}-${PKG_VERSION}-r${PKG_RELEASE}.apk"
-          if command -v apk >/dev/null 2>&1; then
-            apk mkpkg \
-              --info "name:${PKG_NAME}" \
-              --info "version:${PKG_VERSION}-r${PKG_RELEASE}" \
-              --info "description:LuCI support for 1:1 Prefix NAT" \
-              --info "arch:${PKG_ARCH}" \
-              --info "license:MIT" \
-              --info "origin:https://github.com/porech/luci-app-prefix-nat" \
-              --info "maintainer:Alessandro Rinaldi" \
-              --info "depends:luci-base" \
-              --files "build/data" \
-              --output "${APK_NAME}" 2>/dev/null && echo "Built: ${APK_NAME}" || echo "WARNING: apk mkpkg failed, skipping apk build"
-          else
-            echo "WARNING: apk-tools not available, skipping apk build"
+          VERSION="${{ matrix.openwrt.version }}"
+          BASE_URL="https://downloads.openwrt.org/releases/${VERSION}/targets/x86/64"
+          SDK_FILE=$(curl -sL "${BASE_URL}/sha256sums" | grep -oE 'openwrt-sdk-[^ ]+\.tar\.[a-z]+' | head -1)
+          if [ -z "$SDK_FILE" ]; then
+            echo "ERROR: Could not find SDK for ${VERSION}"
+            exit 1
           fi
+          echo "url=${BASE_URL}/${SDK_FILE}" >> "$GITHUB_OUTPUT"
+          echo "file=${SDK_FILE}" >> "$GITHUB_OUTPUT"
 
-          echo "PKG_FULL=${PKG_FULL}" >> "$GITHUB_ENV"
+      - name: Cache OpenWrt SDK
+        uses: actions/cache@v4
+        id: cache-sdk
+        with:
+          path: sdk.tar.*
+          key: openwrt-sdk-${{ matrix.openwrt.version }}-x86-64
+
+      - name: Download OpenWrt SDK
+        if: steps.cache-sdk.outputs.cache-hit != 'true'
+        run: wget -q "${{ steps.sdk-name.outputs.url }}" -O "${{ steps.sdk-name.outputs.file }}"
+
+      - name: Build package via SDK
+        run: |
+          mkdir -p /tmp/sdk
+          tar xf ${{ steps.sdk-name.outputs.file }} --strip-components=1 -C /tmp/sdk
+          cd /tmp/sdk
+          cp feeds.conf.default feeds.conf
+          echo "src-link prefix-nat ${{ github.workspace }}" >> feeds.conf
+          ./scripts/feeds update -a
+          ./scripts/feeds install luci-app-prefix-nat
+          RELEASE=$(cd ${{ github.workspace }} && git rev-list --count HEAD)
+          sed -i "s/^PKG_RELEASE:=.*/PKG_RELEASE:=${RELEASE}/" /tmp/sdk/feeds/prefix-nat/Makefile
+          make defconfig
+          make package/luci-app-prefix-nat/compile V=s -j$(nproc)
+
+      - name: Collect packages
+        run: |
+          mkdir -p packages
+          find /tmp/sdk/bin/ -name "luci-app-prefix-nat*.${{ matrix.openwrt.pkg_format }}" -exec cp {} packages/ \;
+          echo "Collected:"
+          ls -la packages/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.openwrt.branch }}
+          path: packages/
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
       - name: Generate repository
         env:
           USIGN_SEC_KEY: ${{ secrets.USIGN_SEC_KEY }}
           USIGN_PUB_KEY: ${{ secrets.USIGN_PUB_KEY }}
         run: |
-          # Install usign
+          # Install usign for opkg signing
           sudo apt-get -qq install -y cmake git gcc libc6-dev >/dev/null 2>&1
           git clone -q https://git.openwrt.org/project/usign.git /tmp/usign-src
           cd /tmp/usign-src && cmake -DCMAKE_BUILD_TYPE=Release . >/dev/null && make -s && sudo cp usign /usr/local/bin/
-          cd "$GITHUB_WORKSPACE"
+          cd "$OLDPWD"
 
-          # --- 24.10 repo (opkg / ipk) ---
-          mkdir -p repo/24.10
-          cp ${PKG_FULL}.ipk repo/24.10/
-          cd repo/24.10
-          for ipk in *.ipk; do
-            [ -f "$ipk" ] || continue
-            tar -xOf "$ipk" ./control.tar.gz | tar xzf - --to-stdout ./control
-            echo "Filename: $ipk"
-            echo "Size: $(stat -c %s "$ipk")"
-            echo "SHA256sum: $(sha256sum "$ipk" | cut -d' ' -f1)"
-            echo ""
-          done > Packages
-          gzip -9c Packages > Packages.gz
-          if [ -n "$USIGN_SEC_KEY" ]; then
-            echo "$USIGN_SEC_KEY" > /tmp/usign.sec
-            usign -S -m Packages -s /tmp/usign.sec
-            rm -f /tmp/usign.sec
-          fi
-          cd "$GITHUB_WORKSPACE"
+          for dir in artifacts/packages-*/; do
+            branch=$(basename "$dir" | sed 's/packages-//')
+            mkdir -p "repo/${branch}"
+            cp "$dir"/* "repo/${branch}/"
+          done
 
-          # --- 25.12 repo (apk) ---
-          mkdir -p repo/25.12
-          if ls *.apk 1>/dev/null 2>&1; then
-            cp *.apk repo/25.12/
-            cd repo/25.12
-            if command -v apk >/dev/null 2>&1; then
-              apk mkndx --allow-untrusted -o packages.adb *.apk 2>/dev/null || echo "WARNING: apk mkndx failed"
+          # Generate opkg index for ipk dirs
+          for branch_dir in repo/*/; do
+            cd "$branch_dir"
+            if ls *.ipk 1>/dev/null 2>&1; then
+              for ipk in *.ipk; do
+                tar -xOf "$ipk" ./control.tar.gz 2>/dev/null | tar xzf - --to-stdout ./control 2>/dev/null || \
+                  tar -xOf "$ipk" ./control.tar.zst 2>/dev/null | zstd -d | tar xf - --to-stdout ./control 2>/dev/null || true
+                echo "Filename: $ipk"
+                echo "Size: $(stat -c %s "$ipk")"
+                echo "SHA256sum: $(sha256sum "$ipk" | cut -d' ' -f1)"
+                echo ""
+              done > Packages
+              gzip -9c Packages > Packages.gz
+              if [ -n "$USIGN_SEC_KEY" ]; then
+                echo "$USIGN_SEC_KEY" > /tmp/usign.sec
+                usign -S -m Packages -s /tmp/usign.sec
+                rm -f /tmp/usign.sec
+              fi
             fi
-            cd "$GITHUB_WORKSPACE"
-          fi
+            cd "$OLDPWD"
+          done
 
-          # Write public key
           if [ -n "$USIGN_PUB_KEY" ]; then
             echo "$USIGN_PUB_KEY" > repo/prefix-nat-repo.pub
           fi
@@ -155,7 +135,7 @@ jobs:
           path: repo
 
   deploy:
-    needs: build
+    needs: publish
     runs-on: ubuntu-latest
     environment:
       name: github-pages
