@@ -16,7 +16,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build ipk
+      - name: Build packages
         run: |
           PKG_NAME="luci-app-prefix-nat"
           PKG_VERSION="1.0.0"
@@ -24,8 +24,15 @@ jobs:
           PKG_ARCH="all"
           PKG_FULL="${PKG_NAME}_${PKG_VERSION}-${PKG_RELEASE}_${PKG_ARCH}"
 
-          # Create control file
+          # Prepare data tree
           mkdir -p build/control build/data
+          cp -r root/* build/data/ 2>/dev/null || true
+          mkdir -p build/data/www
+          cp -r htdocs/* build/data/www/ 2>/dev/null || true
+
+          INSTALLED_SIZE=$(find build/data -type f 2>/dev/null | xargs wc -c 2>/dev/null | tail -1 | awk '{print $1}')
+
+          # --- Build .ipk (opkg format for 24.10) ---
           cat > build/control/control <<EOF
           Package: ${PKG_NAME}
           Version: ${PKG_VERSION}-${PKG_RELEASE}
@@ -37,12 +44,11 @@ jobs:
           SourceDateEpoch: $(date +%s)
           Maintainer: Alessandro Rinaldi
           Architecture: ${PKG_ARCH}
-          Installed-Size: $(find root htdocs -type f 2>/dev/null | xargs wc -c | tail -1 | awk '{print $1}')
+          Installed-Size: ${INSTALLED_SIZE}
           Description: LuCI support for 1:1 Prefix NAT
            Provides a LuCI interface to configure nftables 1:1 prefix NAT rules
            for subnet-to-subnet translation, compatible with firewall4.
           EOF
-          # Trim leading spaces from heredoc
           sed -i 's/^          //' build/control/control
 
           cat > build/control/conffiles <<EOF
@@ -61,32 +67,56 @@ jobs:
           sed -i 's/^          //' build/control/postinst
           chmod +x build/control/postinst
 
-          # Copy files
-          cp -r root/* build/data/ 2>/dev/null || true
-          mkdir -p build/data/www
-          cp -r htdocs/* build/data/www/ 2>/dev/null || true
-
-          # Build ipk (gzipped tar of tar.gz members, matching OpenWRT SDK format)
           cd build/control && tar czf ../control.tar.gz . && cd ../..
           cd build/data && tar czf ../data.tar.gz . && cd ../..
           echo "2.0" > build/debian-binary
           cd build && tar czf "../${PKG_FULL}.ipk" ./debian-binary ./control.tar.gz ./data.tar.gz && cd ..
+          echo "Built: ${PKG_FULL}.ipk"
+
+          # --- Build .apk (apk format for 25.12) ---
+          # Install apk-tools
+          sudo apt-get -qq update && sudo apt-get -qq install -y apk-tools 2>/dev/null || {
+            # Fallback: download static apk
+            wget -qO /tmp/apk-tools-static.apk "https://dl-cdn.alpinelinux.org/alpine/v3.21/main/x86_64/apk-tools-static-2.14.6-r3.apk" || true
+            if [ -f /tmp/apk-tools-static.apk ]; then
+              cd /tmp && tar xzf apk-tools-static.apk sbin/apk.static 2>/dev/null && sudo cp sbin/apk.static /usr/local/bin/apk && cd "$OLDPWD"
+            fi
+          }
+
+          APK_NAME="${PKG_NAME}-${PKG_VERSION}-r${PKG_RELEASE}.apk"
+          if command -v apk >/dev/null 2>&1; then
+            apk mkpkg \
+              --info "name:${PKG_NAME}" \
+              --info "version:${PKG_VERSION}-r${PKG_RELEASE}" \
+              --info "description:LuCI support for 1:1 Prefix NAT" \
+              --info "arch:${PKG_ARCH}" \
+              --info "license:MIT" \
+              --info "origin:https://github.com/porech/luci-app-prefix-nat" \
+              --info "maintainer:Alessandro Rinaldi" \
+              --info "depends:luci-base" \
+              --files "build/data" \
+              --output "${APK_NAME}" 2>/dev/null && echo "Built: ${APK_NAME}" || echo "WARNING: apk mkpkg failed, skipping apk build"
+          else
+            echo "WARNING: apk-tools not available, skipping apk build"
+          fi
 
           echo "PKG_FULL=${PKG_FULL}" >> "$GITHUB_ENV"
-          echo "Built: ${PKG_FULL}.ipk ($(stat -c %s "${PKG_FULL}.ipk") bytes)"
 
       - name: Generate repository
         env:
           USIGN_SEC_KEY: ${{ secrets.USIGN_SEC_KEY }}
           USIGN_PUB_KEY: ${{ secrets.USIGN_PUB_KEY }}
         run: |
-          mkdir -p repo
+          # Install usign
+          sudo apt-get -qq install -y cmake git gcc libc6-dev >/dev/null 2>&1
+          git clone -q https://git.openwrt.org/project/usign.git /tmp/usign-src
+          cd /tmp/usign-src && cmake -DCMAKE_BUILD_TYPE=Release . >/dev/null && make -s && sudo cp usign /usr/local/bin/
+          cd "$GITHUB_WORKSPACE"
 
-          # Copy ipk
-          cp ${PKG_FULL}.ipk repo/
-
-          # Generate Packages index
-          cd repo
+          # --- 24.10 repo (opkg / ipk) ---
+          mkdir -p repo/24.10
+          cp ${PKG_FULL}.ipk repo/24.10/
+          cd repo/24.10
           for ipk in *.ipk; do
             [ -f "$ipk" ] || continue
             tar -xOf "$ipk" ./control.tar.gz | tar xzf - --to-stdout ./control
@@ -96,50 +126,28 @@ jobs:
             echo ""
           done > Packages
           gzip -9c Packages > Packages.gz
-
-          # Sign if key is available
           if [ -n "$USIGN_SEC_KEY" ]; then
-            # Install usign
-            sudo apt-get -qq install -y cmake git gcc libc6-dev >/dev/null 2>&1
-            git clone -q https://git.openwrt.org/project/usign.git /tmp/usign-src
-            cd /tmp/usign-src && cmake -DCMAKE_BUILD_TYPE=Release . >/dev/null && make -s && sudo cp usign /usr/local/bin/
-            cd "$GITHUB_WORKSPACE/repo"
-
             echo "$USIGN_SEC_KEY" > /tmp/usign.sec
             usign -S -m Packages -s /tmp/usign.sec
             rm -f /tmp/usign.sec
-            echo "Packages signed"
+          fi
+          cd "$GITHUB_WORKSPACE"
+
+          # --- 25.12 repo (apk) ---
+          mkdir -p repo/25.12
+          if ls *.apk 1>/dev/null 2>&1; then
+            cp *.apk repo/25.12/
+            cd repo/25.12
+            if command -v apk >/dev/null 2>&1; then
+              apk mkndx --allow-untrusted -o packages.adb *.apk 2>/dev/null || echo "WARNING: apk mkndx failed"
+            fi
+            cd "$GITHUB_WORKSPACE"
           fi
 
           # Write public key
           if [ -n "$USIGN_PUB_KEY" ]; then
-            echo "$USIGN_PUB_KEY" > prefix-nat-repo.pub
+            echo "$USIGN_PUB_KEY" > repo/prefix-nat-repo.pub
           fi
-
-          cd ..
-
-          # Create index.html for the repo
-          cat > repo/index.html <<'HTMLEOF'
-          <!DOCTYPE html>
-          <html><head><title>luci-app-prefix-nat repository</title></head>
-          <body>
-          <h1>luci-app-prefix-nat OpenWRT package repository</h1>
-          <p>Add this feed to your OpenWRT router:</p>
-          <pre>
-          # Add signing key
-          KEY_ID=$(wget -qO- https://porech.github.io/luci-app-prefix-nat/prefix-nat-repo.pub | usign -F -p /dev/stdin)
-          wget -qO /etc/opkg/keys/$KEY_ID https://porech.github.io/luci-app-prefix-nat/prefix-nat-repo.pub
-
-          # Add feed
-          echo "src/gz prefix-nat https://porech.github.io/luci-app-prefix-nat" >> /etc/opkg/customfeeds.conf
-
-          # Install
-          opkg update
-          opkg install luci-app-prefix-nat
-          </pre>
-          </body></html>
-          HTMLEOF
-          sed -i 's/^          //' repo/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
