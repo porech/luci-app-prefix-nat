@@ -68,10 +68,16 @@ jobs:
           make defconfig
           make package/luci-app-prefix-nat/compile V=s -j$(nproc)
 
-      - name: Collect packages
+      - name: Collect packages and generate index
         run: |
+          PKG_EXT="${{ matrix.openwrt.pkg_format }}"
           mkdir -p packages
-          find /tmp/sdk/bin/ -name "luci-app-prefix-nat*.${{ matrix.openwrt.pkg_format }}" -exec cp {} packages/ \;
+          find /tmp/sdk/bin/ -name "luci-app-prefix-nat*.${PKG_EXT}" -exec cp {} packages/ \;
+          if [ "$PKG_EXT" = "apk" ]; then
+            cd packages
+            /tmp/sdk/staging_dir/host/bin/apk mkndx -o packages.adb *.apk
+            cd ..
+          fi
           echo "Collected:"
           ls -la packages/
 
