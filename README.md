@@ -152,14 +152,14 @@ Then open LuCI and navigate to **Network → Firewall → Prefix NAT**.
 Add the following line to `feeds.conf.default`:
 
 ```
-src-git prefix-nat https://github.com/porech/luci-app-prefix-nat.git
+src-git prefixnat https://github.com/porech/luci-app-prefix-nat.git
 ```
 
 Then:
 
 ```sh
-./scripts/feeds update prefix-nat
-./scripts/feeds install -a -p prefix-nat
+./scripts/feeds update prefixnat
+./scripts/feeds install -a -p prefixnat
 make menuconfig   # enable LuCI → Applications → luci-app-prefix-nat
 make package/luci-app-prefix-nat/compile
 ```
