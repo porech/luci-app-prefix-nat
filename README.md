@@ -113,29 +113,41 @@ config rule
 
 ## Install
 
-### Add the package repository
+### OpenWrt 25.12 (apk)
 
 ```sh
-# Add the signing key
+# Add signing key
+wget -qO /etc/apk/keys/prefix-nat-apk.pem \
+  https://porech.github.io/luci-app-prefix-nat/prefix-nat-apk.pem
+
+# Add feed
+echo "https://porech.github.io/luci-app-prefix-nat/25.12/packages.adb" \
+  >> /etc/apk/repositories.d/customfeeds.list
+
+# Install
+apk update
+apk add luci-app-prefix-nat
+```
+
+### OpenWrt 24.10 (opkg)
+
+```sh
+# Add signing key
 wget -qO /etc/opkg/keys/563209649ecb9283 \
   https://porech.github.io/luci-app-prefix-nat/prefix-nat-repo.pub
 
-# Add the feed
-echo "src/gz prefix-nat https://porech.github.io/luci-app-prefix-nat" \
+# Add feed
+echo "src/gz prefix-nat https://porech.github.io/luci-app-prefix-nat/24.10" \
   >> /etc/opkg/customfeeds.conf
-```
 
-### Install the package
-
-```sh
+# Install
 opkg update
 opkg install luci-app-prefix-nat
-/etc/init.d/prefix-nat enable
 ```
 
 Then open LuCI and navigate to **Network → Firewall → Prefix NAT**.
 
-### Build from source (OpenWRT SDK)
+### Build from source (OpenWrt SDK)
 
 Add the following line to `feeds.conf.default`:
 
@@ -175,7 +187,7 @@ The `src` and `dest` subnets must have the same prefix length.
 
 ## Requirements
 
-- OpenWRT 23.05+ (firewall4 / nftables)
+- OpenWrt 24.10 or 25.12 (firewall4 / nftables)
 - `luci-base`
 
 ## License
