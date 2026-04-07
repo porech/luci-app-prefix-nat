@@ -51,6 +51,8 @@ jobs:
         run: wget -q "${{ steps.sdk-name.outputs.url }}" -O "${{ steps.sdk-name.outputs.file }}"
 
       - name: Build package via SDK
+        env:
+          APK_SIGNING_KEY: ${{ secrets.APK_SIGNING_KEY }}
         run: |
           mkdir -p /tmp/sdk
           tar xf ${{ steps.sdk-name.outputs.file }} --strip-components=1 -C /tmp/sdk
@@ -66,6 +68,11 @@ jobs:
           RELEASE=$(cd ${{ github.workspace }} && git rev-list --count HEAD)
           sed -i "s/^PKG_RELEASE:=.*/PKG_RELEASE:=${RELEASE}/" /tmp/sdk/feeds/prefixnat/luci-app-prefix-nat/Makefile
           make defconfig
+          # Inject our signing key (defconfig generates an ephemeral one)
+          if [ -n "$APK_SIGNING_KEY" ] && [ "${{ matrix.openwrt.pkg_format }}" = "apk" ]; then
+            echo "$APK_SIGNING_KEY" > /tmp/sdk/private-key.pem
+            openssl ec -in /tmp/sdk/private-key.pem -pubout > /tmp/sdk/public-key.pem 2>/dev/null
+          fi
           make package/luci-app-prefix-nat/compile V=s -j$(nproc)
 
       - name: Collect packages and generate index
@@ -75,7 +82,7 @@ jobs:
           find /tmp/sdk/bin/ -name "luci-app-prefix-nat*.${PKG_EXT}" -exec cp {} packages/ \;
           if [ "$PKG_EXT" = "apk" ]; then
             cd packages
-            /tmp/sdk/staging_dir/host/bin/apk mkndx --allow-untrusted -o packages.adb *.apk
+            /tmp/sdk/staging_dir/host/bin/apk mkndx -o packages.adb *.apk
             cd ..
           fi
           echo "Collected:"
@@ -100,6 +107,7 @@ jobs:
         env:
           USIGN_SEC_KEY: ${{ secrets.USIGN_SEC_KEY }}
           USIGN_PUB_KEY: ${{ secrets.USIGN_PUB_KEY }}
+          APK_SIGNING_PUB: ${{ secrets.APK_SIGNING_PUB }}
         run: |
           # Install usign for opkg signing
           sudo apt-get -qq install -y cmake git gcc libc6-dev >/dev/null 2>&1
@@ -137,6 +145,9 @@ jobs:
 
           if [ -n "$USIGN_PUB_KEY" ]; then
             echo "$USIGN_PUB_KEY" > repo/prefix-nat-repo.pub
+          fi
+          if [ -n "$APK_SIGNING_PUB" ]; then
+            echo "$APK_SIGNING_PUB" > repo/prefix-nat-apk.pem
           fi
 
       - name: Upload Pages artifact
