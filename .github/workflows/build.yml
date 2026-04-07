@@ -54,13 +54,17 @@ jobs:
         run: |
           mkdir -p /tmp/sdk
           tar xf ${{ steps.sdk-name.outputs.file }} --strip-components=1 -C /tmp/sdk
+          # Create feed directory structure (SDK expects feed/package-name/Makefile)
+          mkdir -p /tmp/feed/luci-app-prefix-nat
+          ln -sf ${{ github.workspace }}/* /tmp/feed/luci-app-prefix-nat/
+          ln -sf ${{ github.workspace }}/.* /tmp/feed/luci-app-prefix-nat/ 2>/dev/null || true
           cd /tmp/sdk
           cp feeds.conf.default feeds.conf
-          echo "src-link prefixnat ${{ github.workspace }}" >> feeds.conf
+          echo "src-link prefixnat /tmp/feed" >> feeds.conf
           ./scripts/feeds update -a
           ./scripts/feeds install luci-app-prefix-nat
           RELEASE=$(cd ${{ github.workspace }} && git rev-list --count HEAD)
-          sed -i "s/^PKG_RELEASE:=.*/PKG_RELEASE:=${RELEASE}/" /tmp/sdk/feeds/prefixnat/Makefile
+          sed -i "s/^PKG_RELEASE:=.*/PKG_RELEASE:=${RELEASE}/" /tmp/sdk/feeds/prefixnat/luci-app-prefix-nat/Makefile
           make defconfig
           make package/luci-app-prefix-nat/compile V=s -j$(nproc)
 
