@@ -81,9 +81,10 @@ jobs:
           mkdir -p packages
           find /tmp/sdk/bin/ -name "luci-app-prefix-nat*.${PKG_EXT}" -exec cp {} packages/ \;
           if [ "$PKG_EXT" = "apk" ]; then
+            sudo mkdir -p /etc/apk/keys
+            sudo cp /tmp/sdk/public-key.pem /etc/apk/keys/
             cd packages
             /tmp/sdk/staging_dir/host/bin/apk mkndx \
-              --root /tmp/sdk --keys-dir /tmp/sdk \
               --sign /tmp/sdk/private-key.pem \
               --output packages.adb *.apk
             cd ..
