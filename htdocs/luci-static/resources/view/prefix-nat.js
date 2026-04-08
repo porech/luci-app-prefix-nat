@@ -38,27 +38,36 @@ return view.extend({
 		s.addremove = true;
 		s.anonymous = true;
 		s.sortable = true;
+		s.nodescriptions = true;
 
 		o = s.option(form.Flag, 'enabled', _('Enable'));
 		o.default = '1';
 		o.editable = true;
 
-		o = s.option(form.Value, 'description', _('Description'));
+		o = s.option(form.Value, 'description', _('Description'),
+			_('A human-readable name for this rule.'));
 		o.optional = true;
 		o.placeholder = 'e.g. Studio LAN via tunnel';
-		o.modalonly = false;
 		o.validate = function (section_id, value) {
 			if (value && /[";{}\\]/.test(value))
 				return _('Description must not contain quotes, semicolons, braces, or backslashes');
 			return true;
 		};
 
-		o = s.option(form.Value, 'src', _('Local Subnet'));
+		o = s.option(form.Value, 'src', _('Local Subnet'),
+			_('The real local subnet (CIDR notation). ' +
+			  'Inbound traffic with destination in the virtual subnet will be translated to this subnet. ' +
+			  'Outbound traffic from this subnet will be translated to the virtual subnet.'));
 		o.rmempty = false;
 		o.placeholder = '192.168.9.0/24';
-		o.datatype = 'cidr4';
+		o.validate = function (section_id, value) {
+			return validateCIDR(value);
+		};
 
-		o = s.option(form.Value, 'dest', _('Virtual Subnet'));
+		o = s.option(form.Value, 'dest', _('Virtual Subnet'),
+			_('The translated virtual subnet (CIDR notation). ' +
+			  'Remote hosts use this subnet to reach local devices. ' +
+			  'Must have the same prefix length as the local subnet.'));
 		o.rmempty = false;
 		o.placeholder = '10.0.1.0/24';
 		o.validate = function (section_id, value) {
@@ -76,15 +85,29 @@ return view.extend({
 			return true;
 		};
 
-		o = s.option(form.Value, 'interface', _('Interface'));
+		o = s.option(form.Value, 'interface', _('Interface'),
+			_('The network interface where translation is applied. ' +
+			  'Typically a WireGuard or VPN tunnel interface.'));
 		o.rmempty = false;
 		o.placeholder = 'wg_camion';
-		o.datatype = 'network';
+		o.validate = function (section_id, value) {
+			if (!/^[a-zA-Z0-9_.-]+$/.test(value))
+				return _('Interface name can only contain letters, numbers, underscores, hyphens, and dots');
+			return true;
+		};
 
-		o = s.option(form.Value, 'remote', _('Remote Subnet'));
+		o = s.option(form.Value, 'remote', _('Remote Subnet'),
+			_('Only translate traffic to/from this remote subnet (CIDR notation). ' +
+			  'Leave empty to translate all traffic on the interface. ' +
+			  'Use this when the tunnel also carries non-translated traffic ' +
+			  '(e.g. internet-bound traffic alongside site-to-site).'));
 		o.optional = true;
 		o.placeholder = '10.0.1.0/24';
-		o.datatype = 'cidr4';
+		o.validate = function (section_id, value) {
+			if (!value)
+				return true;
+			return validateCIDR(value);
+		};
 
 		return m.render();
 	}
